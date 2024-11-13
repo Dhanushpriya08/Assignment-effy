@@ -1,8 +1,17 @@
-import React, { useState } from 'react';
-import md5 from 'md5';
 import axios from 'axios';
+import {
+  AlertCircle,
+  FileText,
+  Globe,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  User
+} from 'lucide-react';
+import md5 from 'md5';
+import React, { useEffect, useState } from 'react';
 import './ProfileForm.css';
-import { ArrowLeft, Loader2, User, Mail, Phone, MapPin, Globe, FileText } from 'lucide-react';
 
 const ProfileForm = ({ onSubmit, onBack }) => {
   const [formData, setFormData] = useState({
@@ -18,11 +27,23 @@ const ProfileForm = ({ onSubmit, onBack }) => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [gravatarPreview, setGravatarPreview] = useState(null);
+  const [formTouched, setFormTouched] = useState(false);
+
+  useEffect(() => {
+    // Add animation class to form groups sequentially
+    const formGroups = document.querySelectorAll('.form-group');
+    formGroups.forEach((group, index) => {
+      setTimeout(() => {
+        group.style.opacity = '1';
+        group.style.transform = 'translateY(0)';
+      }, index * 100);
+    });
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Valid email is required';
+      newErrors.email = 'Please enter a valid email address';
     }
     if (!formData.fullName) {
       newErrors.fullName = 'Full name is required';
@@ -30,8 +51,13 @@ const ProfileForm = ({ onSubmit, onBack }) => {
     if (!formData.username) {
       newErrors.username = 'Username is required';
     } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters long';
+      newErrors.username = 'Username must be at least 3 characters';
     }
+
+    if (formData.website && !/^https?:\/\/.*/.test(formData.website)) {
+      newErrors.website = 'Please enter a valid URL starting with http:// or https://';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -58,7 +84,15 @@ const ProfileForm = ({ onSubmit, onBack }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    setFormTouched(true);
+    
+    if (!validateForm()) {
+      const firstError = document.querySelector('.error-message');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -70,9 +104,20 @@ const ProfileForm = ({ onSubmit, onBack }) => {
         gravatarLocation: gravatarData?.currentLocation || formData.location,
         gravatarBio: gravatarData?.aboutMe || formData.bio
       };
+      
+      const form = document.querySelector('.form-container');
+      form.style.transform = 'scale(1.02)';
+      setTimeout(() => {
+        form.style.transform = 'scale(1)';
+      }, 200);
+      
       await onSubmit(profileData);
     } catch (error) {
       console.error('Error submitting profile:', error);
+      setErrors(prev => ({
+        ...prev,
+        submit: 'Failed to create profile. Please try again.'
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -90,15 +135,19 @@ const ProfileForm = ({ onSubmit, onBack }) => {
         [name]: ''
       }));
     }
+    setFormTouched(true);
   };
+
+  const renderErrorMessage = (error) => (
+    <div className="error-message">
+      <AlertCircle size={16} />
+      {error}
+    </div>
+  );
 
   return (
     <div className="form-container">
       <div className="form-header">
-        <button className="back-button" onClick={onBack}>
-          <ArrowLeft size={16} />
-          Back
-        </button>
         <div className="header-content">
           {gravatarPreview && (
             <img
@@ -108,16 +157,16 @@ const ProfileForm = ({ onSubmit, onBack }) => {
             />
           )}
           <h2 className="form-title">Create Your Profile</h2>
-          <p className="form-subtitle">Fill in your information to get started</p>
+          <p className="form-subtitle">Let's get you set up with a great profile</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="form-content">
-          <div className="form-group">
-            <label className="form-label required">
+          <div className="form-group" style={{ opacity: 0, transform: 'translateY(20px)' }}>
+            <label className="form-label">
               <Mail size={16} />
-              Email Address
+              Email Address <span className="required-star">*</span>
             </label>
             <input
               type="email"
@@ -125,17 +174,16 @@ const ProfileForm = ({ onSubmit, onBack }) => {
               className={`form-input ${errors.email ? 'error' : ''}`}
               value={formData.email}
               onChange={handleEmailChange}
-              placeholder="Enter your email"
+              placeholder="your.email@example.com"
+              required
             />
-            {errors.email && (
-              <div className="error-message">{errors.email}</div>
-            )}
+            {errors.email && renderErrorMessage(errors.email)}
           </div>
 
-          <div className="form-group">
-            <label className="form-label required">
+          <div className="form-group" style={{ opacity: 0, transform: 'translateY(20px)' }}>
+            <label className="form-label">
               <User size={16} />
-              Full Name
+              Full Name <span className="required-star">*</span>
             </label>
             <input
               type="text"
@@ -143,17 +191,16 @@ const ProfileForm = ({ onSubmit, onBack }) => {
               className={`form-input ${errors.fullName ? 'error' : ''}`}
               value={formData.fullName}
               onChange={handleChange}
-              placeholder="Enter your full name"
+              placeholder="John Doe"
+              required
             />
-            {errors.fullName && (
-              <div className="error-message">{errors.fullName}</div>
-            )}
+            {errors.fullName && renderErrorMessage(errors.fullName)}
           </div>
 
-          <div className="form-group">
-            <label className="form-label required">
+          <div className="form-group" style={{ opacity: 0, transform: 'translateY(20px)' }}>
+            <label className="form-label">
               <FileText size={16} />
-              Username
+              Username <span className="required-star">*</span>
             </label>
             <input
               type="text"
@@ -161,14 +208,13 @@ const ProfileForm = ({ onSubmit, onBack }) => {
               className={`form-input ${errors.username ? 'error' : ''}`}
               value={formData.username}
               onChange={handleChange}
-              placeholder="Choose a username"
+              placeholder="johndoe"
+              required
             />
-            {errors.username && (
-              <div className="error-message">{errors.username}</div>
-            )}
+            {errors.username && renderErrorMessage(errors.username)}
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ opacity: 0, transform: 'translateY(20px)' }}>
             <label className="form-label">
               <Phone size={16} />
               Phone Number
@@ -179,11 +225,11 @@ const ProfileForm = ({ onSubmit, onBack }) => {
               className="form-input"
               value={formData.phoneNumber}
               onChange={handleChange}
-              placeholder="Enter your phone number"
+              placeholder="+1 (234) 567-8900"
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ opacity: 0, transform: 'translateY(20px)' }}>
             <label className="form-label">
               <MapPin size={16} />
               Location
@@ -194,11 +240,11 @@ const ProfileForm = ({ onSubmit, onBack }) => {
               className="form-input"
               value={formData.location}
               onChange={handleChange}
-              placeholder="City, Country"
+              placeholder="New York, USA"
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ opacity: 0, transform: 'translateY(20px)' }}>
             <label className="form-label">
               <Globe size={16} />
               Website
@@ -206,14 +252,15 @@ const ProfileForm = ({ onSubmit, onBack }) => {
             <input
               type="url"
               name="website"
-              className="form-input"
+              className={`form-input ${errors.website ? 'error' : ''}`}
               value={formData.website}
               onChange={handleChange}
               placeholder="https://your-website.com"
             />
+            {errors.website && renderErrorMessage(errors.website)}
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ opacity: 0, transform: 'translateY(20px)' }}>
             <label className="form-label">
               <FileText size={16} />
               Bio
@@ -224,15 +271,17 @@ const ProfileForm = ({ onSubmit, onBack }) => {
               value={formData.bio}
               onChange={handleChange}
               placeholder="Tell us about yourself..."
+              rows="4"
             />
           </div>
         </div>
 
         <div className="form-footer">
+          {errors.submit && renderErrorMessage(errors.submit)}
           <button
             type="submit"
             className="submit-button"
-            disabled={isLoading}
+            disabled={isLoading || (!formTouched)}
           >
             {isLoading ? (
               <>
@@ -245,6 +294,12 @@ const ProfileForm = ({ onSubmit, onBack }) => {
           </button>
         </div>
       </form>
+
+      {/* Bottom positioned back button */}
+      {/* <button className="back-to-form" onClick={onBack}>
+        <ArrowLeft size={16} />
+        Back to Form
+      </button> */}
     </div>
   );
 };
